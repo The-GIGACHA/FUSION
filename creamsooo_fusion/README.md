@@ -149,5 +149,5 @@ The integration system allows simultaneous operation of both object and lane det
 - Object Detection Fusion: Team Creamsooo
 - Lane Detection Fusion: Chaemin Park
 
-## License
-This project is licensed under the MIT License - see the LICENSE file for details. 
+## Conclusion
+This integrated system provides robust perception capabilities for autonomous vehicles, combining the strengths of camera-based detection with LiDAR point cloud processing. The system enables reliable operation in various driving conditions and challenging environments. 
