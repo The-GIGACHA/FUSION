@@ -1,0 +1,21 @@
+# 라이다-카메라 융합 파라미터
+
+# 라이다 관련 파라미터
+lidar_topic: "/velodyne_points"
+
+# YOLO 검출 결과 토픽
+yolo_result_topic: "/yolo_result"
+
+# 프레임 ID
+frame_id: "ego_car"
+
+# 긴급 정지 트리거 거리 (미터)
+emergency_distance: 1.0
+
+# 포인트 클라우드 필터링 파라미터
+min_distance: 0.0
+max_distance: 30.0
+voxel_size: 0.1
+
+# 색상 매핑 파라미터
+max_color_distance: 10.0  # 색상 변화가 발생하는 최대 거리 
