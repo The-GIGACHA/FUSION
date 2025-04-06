@@ -47,6 +47,7 @@ include_directories(
 
 add_library(${PROJECT_NAME}
   src/creamsooo_fusion.cpp
+  src/lane_detection_fusion.cpp
 )
 
 target_link_libraries(${PROJECT_NAME}
@@ -65,7 +66,16 @@ target_link_libraries(${PROJECT_NAME}_node
   ${OpenCV_LIBRARIES}
 )
 
-install(TARGETS ${PROJECT_NAME} ${PROJECT_NAME}_node
+add_executable(lane_detection_fusion_node src/lane_detection_fusion_node.cpp)
+add_dependencies(lane_detection_fusion_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(lane_detection_fusion_node
+  ${PROJECT_NAME}
+  ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES}
+  ${OpenCV_LIBRARIES}
+)
+
+install(TARGETS ${PROJECT_NAME} ${PROJECT_NAME}_node lane_detection_fusion_node
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

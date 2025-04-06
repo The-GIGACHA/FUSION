@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- 노드 이름 설정 -->
+    <arg name="node_name" default="lane_detection_fusion" />
+    <arg name="rviz" default="true" />
+    
+    <!-- YOLOPv2 노드 실행 -->
+    <include file="$(find yolopv2_ros)/launch/yolopv2_node.launch">
+        <arg name="node_name" value="yolopv2" />
+    </include>
+    
+    <!-- 캘리브레이션 파라미터 파일 로드 -->
+    <rosparam command="load" file="$(find creamsooo_fusion)/config/calibration_params.yaml" />
+    
+    <!-- 차선 검출 파라미터 파일 로드 -->
+    <rosparam command="load" file="$(find creamsooo_fusion)/config/lane_detection_params.yaml" ns="$(arg node_name)" />
+
+    <!-- 차선 검출 퓨전 노드 실행 -->
+    <node pkg="creamsooo_fusion" type="lane_detection_fusion_node" name="$(arg node_name)" output="screen">
+        <!-- 파라미터 지정 -->
+        <param name="lidar_topic" value="/velodyne_points" />
+        <param name="lane_seg_topic" value="/yolo_lane_seg" />
+        <param name="frame_id" value="ego_car" />
+    </node>
+    
+    <!-- RViz 실행 (옵션) -->
+    <group if="$(arg rviz)">
+        <node pkg="rviz" type="rviz" name="rviz" args="-d $(find creamsooo_fusion)/rviz/lane_detection.rviz" />
+    </group>
+</launch> 

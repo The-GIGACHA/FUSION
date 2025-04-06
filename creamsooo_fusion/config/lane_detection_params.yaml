@@ -1,0 +1,30 @@
+# 차선-라이다 융합 파라미터
+
+# 라이다 관련 파라미터
+lidar_topic: "/velodyne_points"
+
+# YOLOPv2 차선 세그멘테이션 토픽
+lane_seg_topic: "/yolo_lane_seg"
+
+# 프레임 ID
+frame_id: "ego_car"
+
+# 지면 검출 파라미터
+ground_height_threshold: 0.5     # 지면으로 간주할 높이 임계값 (미터)
+ground_max_angle: 0.3            # 지면 법선 벡터와 z축 사이 최대 각도 (라디안)
+ground_z_min: -2.5               # 지면 높이 최소값 (라이다 기준, 미터)
+ground_z_max: 1.0                # 지면 높이 최대값 (라이다 기준, 미터)
+ground_max_iterations: 200       # RANSAC 최대 반복 횟수
+ground_min_inlier_ratio: 0.2     # 인라이어 최소 비율 (낮춤)
+
+# 차선 검출 파라미터 (최대한 널널하게 설정)
+lane_cluster_tolerance: 0.5      # 차선 클러스터링 거리 임계값 (미터)
+lane_min_cluster_size: 1         # 최소 차선 클러스터 크기 
+lane_max_cluster_size: 5000      # 최대 차선 클러스터 크기 
+lane_width: 0.6                  # 차선 폭 (미터) - 
+lane_width_limit: 3.7            # 중앙으로부터 최대 차선 폭 제한 
+lane_min_distance: 0.1           # 최소 검출 거리 (미터) -
+lane_max_distance: 100.0          # 최대 검출 거리 (미터) 
+
+# 시각화 파라미터
+marker_lifetime: 0.1             # 마커 표시 시간 (초) 

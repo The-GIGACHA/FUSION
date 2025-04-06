@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- Launch node arguments -->
+  <arg name="rviz" default="true" />
+
+  <!-- Include Object Detection Fusion launch file -->
+  <include file="$(find creamsooo_fusion)/launch/creamsooo_fusion.launch">
+    <!-- Pass any specific parameters if needed -->
+    <arg name="debug" value="false" /> <!-- Disable individual RViz -->
+  </include>
+
+  <!-- Include Lane Detection Fusion launch file -->
+  <include file="$(find creamsooo_fusion)/launch/lane_detection_fusion.launch">
+    <!-- Pass any specific parameters if needed -->
+    <arg name="rviz" value="false" /> <!-- Disable individual RViz -->
+  </include>
+
+  <!-- Launch RViz with custom configuration for both object and lane detection -->
+  <node if="$(arg rviz)" pkg="rviz" type="rviz" name="rviz" 
+        args="-d $(find creamsooo_fusion)/rviz/integration.rviz" />
+
+  <!-- Static Transform Publisher for ego_car frame if not already provided -->
+  <node pkg="tf" type="static_transform_publisher" name="velodyne_to_ego_car" 
+        args="0 0 0 0 0 0 velodyne ego_car 100" />
+
+</launch> 
