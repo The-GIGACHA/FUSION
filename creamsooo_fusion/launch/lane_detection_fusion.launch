@@ -15,10 +15,19 @@
     <!-- 차선 검출 파라미터 파일 로드 -->
     <rosparam command="load" file="$(find creamsooo_fusion)/config/lane_detection_params.yaml" ns="$(arg node_name)" />
 
+    <!-- Static Transform Publishers for sensors to ego_car frame -->
+    <!-- 카메라와 ego_car 간의 변환 (x=0.97, y=0.0, z=1.32, roll=0.0, pitch=0.0, yaw=0.0) -->
+    <node pkg="tf" type="static_transform_publisher" name="camera_to_ego_car" 
+          args="0.97 0.0 1.32 0.0 0.0 0.0 ego_car camera1_frame 100" />
+
+    <!-- 라이다와 ego_car 간의 변환 (x=1.39, y=0.0, z=0.95, roll=0.0, pitch=0.0, yaw=3.14159) -->
+    <node pkg="tf" type="static_transform_publisher" name="lidar_to_ego_car" 
+          args="1.39 0.0 0.95 0.0 0.0 3.14159 ego_car os_sensor 100" />
+
     <!-- 차선 검출 퓨전 노드 실행 -->
     <node pkg="creamsooo_fusion" type="lane_detection_fusion_node" name="$(arg node_name)" output="screen">
         <!-- 파라미터 지정 -->
-        <param name="lidar_topic" value="/velodyne_points" />
+        <param name="lidar_topic" value="/ouster/points" />
         <param name="lane_seg_topic" value="/yolo_lane_seg" />
         <param name="frame_id" value="ego_car" />
     </node>

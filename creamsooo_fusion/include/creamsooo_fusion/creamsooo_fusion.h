@@ -130,6 +130,7 @@ private:
     
     // 기존 퓨전 방식 함수
     void processTraditionalFusion();
+    void processTraditionalFusionWithoutPublishing();  // 마커 발행 없이 처리하는 함수
     PointCloudT::Ptr filterPointsInBoundingBox(const vision_msgs::Detection2D& detection);
     
     // 새로운 클러스터링 기반 퓨전 함수

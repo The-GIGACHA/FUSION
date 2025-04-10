@@ -19,8 +19,13 @@
   <node if="$(arg rviz)" pkg="rviz" type="rviz" name="rviz" 
         args="-d $(find creamsooo_fusion)/rviz/integration.rviz" />
 
-  <!-- Static Transform Publisher for ego_car frame if not already provided -->
-  <node pkg="tf" type="static_transform_publisher" name="velodyne_to_ego_car" 
-        args="0 0 0 0 0 0 velodyne ego_car 100" />
+  <!-- Static Transform Publishers for sensors to ego_car frame -->
+  <!-- 카메라와 ego_car 간의 변환 (x=0.97, y=0.0, z=1.32, roll=0.0, pitch=0.0, yaw=0.0) -->
+  <node pkg="tf" type="static_transform_publisher" name="ego_to_camera" 
+        args="0.97 0.0 1.32 0.0 0.0 0.0 ego_car camera1_frame 100" />
+
+  <!-- 라이다와 ego_car 간의 변환 (x=1.39, y=0.0, z=0.95, roll=0.0, pitch=0.0, yaw=-1.5708) -->
+  <node pkg="tf" type="static_transform_publisher" name="ego_to_lidar" 
+        args="1.39 0.0 0.95 0.0 0.0 -1.5708 ego_car os_sensor 100" />
 
 </launch> 
