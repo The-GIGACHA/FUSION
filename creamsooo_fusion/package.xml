@@ -2,7 +2,7 @@
 <package format="2">
   <name>creamsooo_fusion</name>
   <version>0.0.1</version>
-  <description></description>
+  <description>카메라로 객체를 감지하고 라이다 포인트를 가공하여 안전 기능을 추가하는 패키지</description>
 
   <maintainer email="user@user.com">creamsooo</maintainer>
 

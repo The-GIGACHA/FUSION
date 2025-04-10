@@ -2,7 +2,7 @@
 <launch>
   <arg name="debug" default="true"/>
   <arg name="yolo_model" default="yolov8m-seg.pt"/>
-  <arg name="input_topic" default="/image_jpeg/compressed"/>
+  <arg name="input_topic" default="/usb_cam/image_raw/compressed"/>
   <arg name="result_topic" default="/yolo_result"/>
   <arg name="result_image_topic" default="/yolo_image"/>
   <arg name="conf_thres" default="0.5"/>
@@ -19,7 +19,7 @@
   <arg name="result_boxes" default="true"/>
   
   <!-- 라이다 관련 파라미터 -->
-  <arg name="lidar_topic" default="/velodyne_points"/>
+  <arg name="lidar_topic" default="/ouster/points"/>
   <arg name="emergency_distance" default="1.0"/>  <!-- 긴급 정지 트리거 거리 (미터) -->
   <arg name="frame_id" default="ego_car"/>  <!-- 메인 프레임 ID -->
   
@@ -34,6 +34,15 @@
   
   <!-- 캘리브레이션 파라미터 파일 로드 -->
   <rosparam command="load" file="$(find creamsooo_fusion)/config/calibration_params.yaml"/>
+  
+  <!-- Static Transform Publishers for sensors to ego_car frame -->
+  <!-- 카메라와 ego_car 간의 변환 (x=0.97, y=0.0, z=1.32, roll=0.0, pitch=0.0, yaw=0.0) -->
+  <node pkg="tf" type="static_transform_publisher" name="camera_to_ego_car" 
+        args="0.97 0.0 1.32 0.0 0.0 0.0 ego_car camera1_frame 100" />
+
+  <!-- 라이다와 ego_car 간의 변환 (x=1.39, y=0.0, z=0.95, roll=0.0, pitch=0.0, yaw=3.14159) -->
+  <node pkg="tf" type="static_transform_publisher" name="lidar_to_ego_car" 
+        args="1.39 0.0 0.95 0.0 0.0 0.0 ego_car os_sensor 100" />
   
   <!-- YOLO 객체 감지 노드 -->
   <node name="tracker_node" pkg="ultralytics_ros" type="tracker_node.py" output="screen">

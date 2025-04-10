@@ -1,7 +1,7 @@
 # 차선-라이다 융합 파라미터
 
 # 라이다 관련 파라미터
-lidar_topic: "/velodyne_points"
+lidar_topic: "/ouster_points"
 
 # YOLOPv2 차선 세그멘테이션 토픽
 lane_seg_topic: "/yolo_lane_seg"

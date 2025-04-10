@@ -1,7 +1,7 @@
 # 라이다-카메라 융합 파라미터
 
 # 라이다 관련 파라미터
-lidar_topic: "/velodyne_points"
+lidar_topic: "/ouster_points"
 
 # YOLO 검출 결과 토픽
 yolo_result_topic: "/yolo_result"

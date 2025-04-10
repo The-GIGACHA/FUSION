@@ -764,14 +764,24 @@ PointCloudT::Ptr CreamsoooFusion::filterPointsInBoundingBox(const vision_msgs::D
 }
 
 void CreamsoooFusion::processPointCloud() {
-    // 퓨전 모드에 따라 처리
-    if (fusion_mode_ == 0 || fusion_mode_ == 2) {
-        // 기존 퓨전 방식 (바운딩 박스 기반)
+    // 마커 중복 발행 문제 해결을 위해 구조 변경
+    if (fusion_mode_ == 0) {
+        // 기존 퓨전 방식 (바운딩 박스 기반)만 사용
         processTraditionalFusion();
     }
-    
-    if (fusion_mode_ == 1 || fusion_mode_ == 2) {
-        // 클러스터링 기반 퓨전 방식
+    else if (fusion_mode_ == 1) {
+        // 클러스터링 기반 퓨전 방식만 사용
+        performClustering();
+        matchClustersToDetections();
+        publishClusterMarkers();
+        publishIoUFusionMarkers();
+    }
+    else if (fusion_mode_ == 2) {
+        // 두 방식 모두 사용 (바운딩 박스 방식과 클러스터링 방식)
+        // 먼저 Traditional 방식 사용 (마커는 발행 안 함)
+        processTraditionalFusionWithoutPublishing();
+        
+        // 그 다음 클러스터링 방식 사용 (마커 발행)
         performClustering();
         matchClustersToDetections();
         publishClusterMarkers();
@@ -931,6 +941,77 @@ void CreamsoooFusion::processTraditionalFusion() {
     checkEmergencyStop(object_distances);
 }
 
+void CreamsoooFusion::processTraditionalFusionWithoutPublishing() {
+    // 객체 거리 정보를 저장할 벡터
+    std::vector<creamsooo_fusion::ObjectDistance> object_distances;
+    
+    // 각 감지된 객체에 대해 처리
+    for (size_t i = 0; i < current_detections_.detections.detections.size(); i++) {
+        const auto& detection = current_detections_.detections.detections[i];
+        
+        // 객체 바운딩 박스 영역 내의 포인트 필터링 (캘리브레이션 기반)
+        PointCloudT::Ptr object_cloud = filterPointsInBoundingBox(detection);
+        
+        // 필터링된 포인트가 없으면 다음 객체로
+        if (object_cloud->empty()) {
+            continue;
+        }
+        
+        // 포인트 다운샘플링 (선택 사항)
+        pcl::VoxelGrid<PointT> voxel_grid;
+        voxel_grid.setInputCloud(object_cloud);
+        voxel_grid.setLeafSize(0.1f, 0.1f, 0.1f);
+        voxel_grid.filter(*object_cloud);
+        
+        // 객체 중심 좌표 계산
+        Eigen::Vector4f centroid;
+        if (object_cloud->size() > 0) {
+            pcl::compute3DCentroid(*object_cloud, centroid);
+            
+            // 객체까지의 거리 계산
+            double distance = sqrt(centroid[0] * centroid[0] + centroid[1] * centroid[1] + centroid[2] * centroid[2]);
+            
+            // 객체 정보 메시지 생성
+            creamsooo_fusion::ObjectDistance obj_dist;
+            obj_dist.header.stamp = ros::Time::now();
+            obj_dist.header.frame_id = frame_id_;
+            obj_dist.id = i;  // detection ID는 vision_msgs에서 제공하지 않으므로 인덱스 사용
+            
+            // 클래스 이름 가져오기
+            std::string class_name = "";
+            if (!detection.results.empty()) {
+                class_name = detection.results[0].id;
+            }
+            obj_dist.class_name = class_name;
+            obj_dist.distance = distance;
+            
+            // 중심점 설정
+            obj_dist.center.x = centroid[0];
+            obj_dist.center.y = centroid[1];
+            obj_dist.center.z = centroid[2];
+            
+            // 긴급 정지 조건 확인
+            obj_dist.emergency = (distance < emergency_distance_);
+            
+            // 객체 거리 정보 추가
+            object_distances.push_back(obj_dist);
+            
+            // 객체 거리 정보 발행
+            object_distance_pub_.publish(obj_dist);
+            
+            // 필터링된 객체 포인트 클라우드 발행
+            sensor_msgs::PointCloud2 cloud_msg;
+            pcl::toROSMsg(*object_cloud, cloud_msg);
+            cloud_msg.header.frame_id = frame_id_;
+            cloud_msg.header.stamp = ros::Time::now();
+            filtered_points_pub_.publish(cloud_msg);
+        }
+    }
+    
+    // 긴급 정지 조건 확인
+    checkEmergencyStop(object_distances);
+}
+
 void CreamsoooFusion::publishClusterMarkers() {
     visualization_msgs::MarkerArray markers;
     
@@ -955,11 +1036,11 @@ void CreamsoooFusion::publishClusterMarkers() {
         marker.pose.position.z = cluster.centroid[2];
         marker.pose.orientation.w = 1.0;
         
-        // 클러스터 크기에 비례한 마커 크기
-        double size_factor = std::min(1.0, std::max(0.5, (double)cluster.cloud->size() / 100.0));
-        marker.scale.x = 0.5 * size_factor;
-        marker.scale.y = 0.5 * size_factor;
-        marker.scale.z = 0.5 * size_factor;
+        // 클러스터 크기에 비례한 마커 크기 - 대폭 축소
+        double size_factor = std::min(0.5, std::max(0.2, (double)cluster.cloud->size() / 200.0));
+        marker.scale.x = 0.3 * size_factor;
+        marker.scale.y = 0.3 * size_factor;
+        marker.scale.z = 0.3 * size_factor;
         
         // 거리에 따른 색상 설정
         if (cluster.distance < 3.0) {
@@ -1041,37 +1122,44 @@ void CreamsoooFusion::publishIoUFusionMarkers() {
             // 클러스터의 바운딩 박스 크기 계산
             Eigen::Vector4f min_pt, max_pt;
             pcl::getMinMax3D(*(cluster.cloud), min_pt, max_pt);
+            
+            // 축 올바르게 매핑 (PCL 표준 좌표계 사용)
             float width = max_pt[0] - min_pt[0];   // x
-            float depth = max_pt[2] - min_pt[2];  // z
-            float height = max_pt[1] - min_pt[1];   // y
+            float height = max_pt[2] - min_pt[2];  // z (up direction in most ROS setups)
+            float depth = max_pt[1] - min_pt[1];   // y
+            
+            // 강제로 작은 크기로 설정
+            width = std::min(width, 0.8f);
+            depth = std::min(depth, 0.8f);
+            height = std::min(height, 1.2f);
             
             // 최소 크기 보장
-            width = std::max(width, 0.5f);
-            depth = std::max(depth, 0.5f);
-            height = std::max(height, 1.0f);
+            width = std::max(width, 0.3f);
+            depth = std::max(depth, 0.3f);
+            height = std::max(height, 0.5f);
             
-            // 너무 작은 객체 크기 조정 (시각화를 위해)
+            // 클래스별 크기 조정
             if (cluster.class_name == "person" || cluster.class_name == "person_estimate") {
-                width = std::max(width, 0.6f);
-                depth = std::max(depth, 0.6f);
-                height = std::max(height, 1.7f);
+                width = 0.5f;
+                depth = 0.5f;
+                height = 1.5f;
             } else if (cluster.class_name == "car" || cluster.class_name == "truck" || 
                        cluster.class_name == "vehicle_estimate") {
-                width = std::max(width, 1.8f);
-                depth = std::max(depth, 1.8f);
-                height = std::max(height, 1.5f);
+                width = 1.5f;
+                depth = 0.8f;
+                height = 1.0f;
             }
             
             // 마커 위치 및 크기
             marker.pose.position.x = cluster.centroid[0];
             marker.pose.position.y = cluster.centroid[1];
-            marker.pose.position.z = min_pt[2] + height/2;  // 바닥에 위치하도록 z 위치 조정
+            marker.pose.position.z = cluster.centroid[2] - height/4;  // 바닥에 가깝게 위치
             marker.pose.orientation.w = 1.0;
             
-            // 원통형 마커의 반지름은 width와 depth의 평균으로 설정
-            float radius = (width + depth) / 4.0;
-            marker.scale.x = radius * 2;
-            marker.scale.y = radius * 2;
+            // 원통형 마커의 반지름은 width와 depth의 평균으로 설정 (더 작게 조정)
+            float radius = std::min((width + depth) / 5.0f, 0.5f);  // 매우 작게 설정
+            marker.scale.x = radius;
+            marker.scale.y = radius;
             marker.scale.z = height;
             
             // 매칭된 클래스에 따른 색상 설정
@@ -1090,7 +1178,7 @@ void CreamsoooFusion::publishIoUFusionMarkers() {
                 marker.color.g = 0.0;
                 marker.color.b = 0.5;  // 자주색 (기타)
             }
-            marker.color.a = 0.8;
+            marker.color.a = 0.6;  // 투명도 증가
             
             // 마커 지속 시간을 늘려 깜빡임 감소
             marker.lifetime = ros::Duration(0.3);
@@ -1108,10 +1196,10 @@ void CreamsoooFusion::publishIoUFusionMarkers() {
             
             text_marker.pose.position.x = cluster.centroid[0];
             text_marker.pose.position.y = cluster.centroid[1];
-            text_marker.pose.position.z = max_pt[2] + 0.5;  // 객체 위에 텍스트 표시
+            text_marker.pose.position.z = cluster.centroid[2] + height/2 + 0.3;  // 객체 위에 텍스트 표시
             text_marker.pose.orientation.w = 1.0;
             
-            text_marker.scale.z = 0.5;  // 텍스트 크기
+            text_marker.scale.z = 0.4;  // 텍스트 크기 약간 줄임
             
             text_marker.color.r = 1.0;
             text_marker.color.g = 1.0;
