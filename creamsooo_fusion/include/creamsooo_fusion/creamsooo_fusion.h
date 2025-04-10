@@ -2,6 +2,8 @@
 #define CREAMSOOO_FUSION_H
 
 #include <ros/ros.h>
+#include <image_transport/image_transport.h>    // CompressedImage -> Image
+
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/CompressedImage.h>
 #include <geometry_msgs/Point.h>
@@ -22,6 +24,8 @@
 #include <vision_msgs/Detection2D.h>
 #include <vision_msgs/Detection2DArray.h>
 #include <creamsooo_fusion/ObjectDistance.h>
+#include <visualization_msgs/Marker.h>  // 맨 위에 추가
+
 
 // 포인트 클라우드 타입 정의
 typedef pcl::PointXYZI PointT;
@@ -67,7 +71,9 @@ public:
     
     // 소멸자
     ~CreamsoooFusion();
-    
+
+
+
 private:
     // ROS 노드 핸들
     ros::NodeHandle nh_;
@@ -90,7 +96,12 @@ private:
     ros::Publisher emergency_stop_pub_;
     ros::Publisher cluster_markers_pub_;  // 클러스터링 결과 마커
     ros::Publisher iou_fusion_markers_pub_;  // IOU 퓨전 결과 마커
-    
+    ros::Publisher emergency_text_pub_;     // RViz용 Emergency 텍스트 마커
+
+    // 이미지 전용: image_transport를 사용한 구독자와 퍼블리셔
+    // image_transport::ImageTransport it_;
+    // image_transport::Subscriber image_sub_;    // image_transport 구독자
+
     // 최근 데이터
     PointCloudT::Ptr current_cloud_;
     ultralytics_ros::YoloResult current_detections_;
@@ -120,7 +131,10 @@ private:
     int next_tracking_id_;                       // 다음에 할당할 트래킹 ID
     ros::Duration max_tracking_duration_;        // 클러스터 트래킹 최대 시간
     int max_lost_frames_;                        // 최대 연속 손실 프레임 수
-    
+
+    // 새로운 image_callback 함수 선언 (CompressedImage -> Image 변환)
+    // void imageCallback(const sensor_msgs::ImageConstPtr& msg);
+
     // 콜백 함수
     void lidarCallback(const sensor_msgs::PointCloud2::ConstPtr& msg);
     void yoloResultCallback(const ultralytics_ros::YoloResult::ConstPtr& msg);

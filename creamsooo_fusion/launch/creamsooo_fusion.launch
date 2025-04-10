@@ -2,7 +2,7 @@
 <launch>
   <arg name="debug" default="true"/>
   <arg name="yolo_model" default="yolov8m-seg.pt"/>
-  <arg name="input_topic" default="/image_jpeg/compressed"/>
+  <arg name="input_topic" default="/image_jpeg"/>
   <arg name="result_topic" default="/yolo_result"/>
   <arg name="result_image_topic" default="/yolo_image"/>
   <arg name="conf_thres" default="0.5"/>
@@ -34,12 +34,15 @@
   
   <!-- 캘리브레이션 파라미터 파일 로드 -->
   <rosparam command="load" file="$(find creamsooo_fusion)/config/calibration_params.yaml"/>
+
+  <!-- 1) CompressedImage → raw Image republisher -->
+  <node pkg="image_transport" type="republish" name="jpeg_to_raw" output="screen" args="compressed in:=$(arg input_topic) raw out:=/image_raw"/>
   
   <!-- YOLO 객체 감지 노드 -->
   <node name="tracker_node" pkg="ultralytics_ros" type="tracker_node.py" output="screen">
     <param name="yolo_model" value="$(arg yolo_model)"/>
-    <param name="input_topic" value="$(arg input_topic)"/>
-    <param name="result_topic" value="$(arg result_topic)"/>
+    <param name="input_topic" value="/image_raw"/>        
+    <param name="result_topic" value="/yolo_result"/>  
     <param name="result_image_topic" value="$(arg result_image_topic)"/>
     <param name="conf_thres" value="$(arg conf_thres)"/>
     <param name="iou_thres" value="$(arg iou_thres)"/>
@@ -58,7 +61,7 @@
   <!-- creamsooo_fusion 노드 -->
   <node name="creamsooo_fusion_node" pkg="creamsooo_fusion" type="creamsooo_fusion_node" output="screen">
     <param name="lidar_topic" value="$(arg lidar_topic)"/>
-    <param name="yolo_result_topic" value="$(arg result_topic)"/>
+    <param name="yolo_result_topic" value="/yolo_result"/>
     <param name="emergency_distance" value="$(arg emergency_distance)"/>
     <param name="frame_id" value="$(arg frame_id)"/>
     <param name="fusion_mode" value="$(arg fusion_mode)"/>

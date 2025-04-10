@@ -8,7 +8,7 @@ CreamsoooFusion::CreamsoooFusion(ros::NodeHandle& nh) : nh_(nh) {
     nh_.param<std::string>("lidar_topic", lidar_topic_, "/velodyne_points");
     nh_.param<std::string>("yolo_result_topic", yolo_result_topic_, "/yolo_result");
     nh_.param<std::string>("frame_id", frame_id_, "ego_car");
-    nh_.param<double>("emergency_distance", emergency_distance_, 1.0);
+    nh_.param<double>("emergency_distance", emergency_distance_, 3.0);
     nh_.param<int>("fusion_mode", fusion_mode_, 2);  // 기본값은 두 방식 모두 사용
     
     // 클러스터링 파라미터 초기화
@@ -32,8 +32,11 @@ CreamsoooFusion::CreamsoooFusion(ros::NodeHandle& nh) : nh_(nh) {
     calculateCameraMatrix();
     
     // 구독자 설정
+    // image_transport를 이용한 이미지 구독자/퍼블리셔 설정
+    // image_sub_ = it_.subscribe("/image_raw", 1, &CreamsoooFusion::imageCallback, this, image_transport::TransportHints("raw"));
+      
     lidar_sub_ = nh_.subscribe(lidar_topic_, 1, &CreamsoooFusion::lidarCallback, this);
-    yolo_result_sub_ = nh_.subscribe(yolo_result_topic_, 1, &CreamsoooFusion::yoloResultCallback, this);
+    yolo_result_sub_ = nh_.subscribe("/yolo_result", 1, &CreamsoooFusion::yoloResultCallback, this);
     
     // 퍼블리셔 설정
     filtered_points_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/filtered_points", 1);
@@ -42,7 +45,8 @@ CreamsoooFusion::CreamsoooFusion(ros::NodeHandle& nh) : nh_(nh) {
     emergency_stop_pub_ = nh_.advertise<std_msgs::Bool>("/e_stop", 1);
     cluster_markers_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/cluster_markers", 1);
     iou_fusion_markers_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/iou_fusion_markers", 1);
-    
+    emergency_text_pub_    = nh_.advertise<visualization_msgs::Marker>("/emergency_text_marker", 1);
+   
     ROS_INFO("CreamsoooFusion initialized with fusion mode: %d", fusion_mode_);
 }
 
@@ -57,7 +61,9 @@ void CreamsoooFusion::loadCalibrationParams() {
     nh_.param<double>("/camera/fov", fov_, 90.0);
     
     // 카메라 위치/자세 파라미터
-    nh_.param<double>("/camera/x", cam_x_, 0.61);
+    // nh_.param<double>("/camera/x", cam_x_, 0.61);
+    nh_.param<double>("/camera/x", cam_x_, 2.61);
+
     nh_.param<double>("/camera/y", cam_y_, 0.0);
     nh_.param<double>("/camera/z", cam_z_, 1.15);
     nh_.param<double>("/camera/roll", cam_roll_, 0.0);
@@ -65,7 +71,8 @@ void CreamsoooFusion::loadCalibrationParams() {
     nh_.param<double>("/camera/yaw", cam_yaw_, 0.0);
     
     // 라이다 위치/자세 파라미터
-    nh_.param<double>("/lidar/x", lidar_x_, 0.36);
+    // nh_.param<double>("/lidar/x", lidar_x_, 0.36);
+    nh_.param<double>("/lidar/x", lidar_x_, 3.36);
     nh_.param<double>("/lidar/y", lidar_y_, 0.0);
     nh_.param<double>("/lidar/z", lidar_z_, 0.65);
     nh_.param<double>("/lidar/roll", lidar_roll_, 0.0);
@@ -74,6 +81,9 @@ void CreamsoooFusion::loadCalibrationParams() {
     
     ROS_INFO("Calibration parameters loaded");
 }
+
+
+
 
 Eigen::Matrix3d CreamsoooFusion::getRotationMatrix(double roll, double pitch, double yaw) {
     // 각 각도의 코사인, 사인 값 계산
@@ -103,6 +113,18 @@ Eigen::Matrix3d CreamsoooFusion::getRotationMatrix(double roll, double pitch, do
     // 전체 회전 행렬 = Yaw * Pitch * Roll (행렬 곱셈 순서 중요)
     return rot_yaw * rot_pitch * rot_roll;
 }
+
+// void CreamsoooFusion::imageCallback(const sensor_msgs::ImageConstPtr& msg) {
+//     // 1) ROS Image → OpenCV Mat
+//     cv_bridge::CvImageConstPtr cv_ptr;
+//     try {
+//         cv_ptr = cv_bridge::toCvShare(msg, sensor_msgs::image_encodings::BGR8);
+//     } catch (cv_bridge::Exception& e) {
+//         ROS_ERROR("cv_bridge exception: %s", e.what());
+//         return;
+//     }
+    
+// }
 
 void CreamsoooFusion::calculateTransformMatrix() {
     // 카메라 자세에 추가 회전 적용 (카메라 좌표계 변환을 위한 보정)
@@ -1191,4 +1213,37 @@ void CreamsoooFusion::checkEmergencyStop(const std::vector<creamsooo_fusion::Obj
     std_msgs::Bool e_stop_msg;
     e_stop_msg.data = emergency;
     emergency_stop_pub_.publish(e_stop_msg);
+    // 2) RViz에 텍스트 마커로도 띄우기
+    visualization_msgs::Marker text_marker;
+    text_marker.header.frame_id = frame_id_;
+    text_marker.header.stamp = ros::Time::now();
+    text_marker.ns = "emergency_text";
+    text_marker.id = 0;
+    text_marker.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
+    text_marker.action = visualization_msgs::Marker::ADD;
+    // 화면 중앙 위쪽에 띄우고 싶으면 x,y=0, z는 충분히 높게
+    text_marker.pose.position.x = 0.0;
+    text_marker.pose.position.y = 0.0;
+    text_marker.pose.position.z = 4.0;
+    text_marker.pose.orientation.w = 1.0;
+    text_marker.scale.z = 0.5;  // 텍스트 크기
+
+    if (emergency) {
+        text_marker.text = "!!! EMERGENCY STOP !!!";
+        text_marker.color.r = 1.0;
+        text_marker.color.g = 0.0;
+        text_marker.color.b = 0.0;
+        text_marker.color.a = 1.0;
+    } else {
+        text_marker.text = "~~~ Fine ~~~";
+        text_marker.color.r = 1.0;
+        text_marker.color.g = 0.0;
+        text_marker.color.b = 0.0;
+        text_marker.color.a = 1.0;
+    }
+    // 너무 오래 남아있지 않도록
+    text_marker.lifetime = ros::Duration(0.2);
+
+    emergency_text_pub_.publish(text_marker);
+
 } 

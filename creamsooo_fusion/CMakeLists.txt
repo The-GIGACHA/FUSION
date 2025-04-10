@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   image_transport
   tf
   message_generation
+  ultralytics_ros
 )
 
 find_package(PCL REQUIRED)
@@ -81,14 +82,14 @@ install(TARGETS ${PROJECT_NAME} ${PROJECT_NAME}_node lane_detection_fusion_node
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
-install(DIRECTORY launch/
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
-)
+# install(DIRECTORY launch/
+#   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
+# )
 
-install(DIRECTORY config/
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/config
-)
+# install(DIRECTORY config/
+#   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/config
+# )
 
-install(DIRECTORY rviz/
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/rviz
-) 
+# install(DIRECTORY rviz/
+#   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/rviz
+# ) 
